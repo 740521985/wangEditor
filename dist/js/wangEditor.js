@@ -6950,13 +6950,16 @@ _e(function (E, $) {
         E.log('选中 ' + files.length + ' 个文件');
 
         // 遍历选中的文件，预览、上传
-        $.each(files, function (key, value) {
-            self.upload(value);
-        });
+        Array.prototype.slice.call(files).reduce(function(promise, item) {
+            return promise.then(function() {
+                return self.upload(item);
+            });
+        }, $.Deferred.resolve());
     };
 
     // 上传单个文件
     UploadFile.fn.upload = function (file) {
+        var defer = $.Deferred();
         var self = this;
         var editor = self.editor;
         var filename = file.name || '';
@@ -6970,6 +6973,7 @@ _e(function (E, $) {
 
         if (!onload || !ontimeout || !onerror) {
             E.error('请为编辑器配置上传图片的 onload ontimeout onerror 回调事件');
+            defer.reject();
             return;
         }
 
@@ -6997,6 +7001,7 @@ _e(function (E, $) {
                     // 执行配置中的方法
                     var editor = this;
                     onload.call(editor, resultText, xhr);
+                    defer.resolve();
                 },
                 errorfn: function (xhr) {
                     clearInput();
@@ -7006,6 +7011,7 @@ _e(function (E, $) {
                     // 执行配置中的方法
                     var editor = this;
                     onerror.call(editor, xhr);
+                    defer.resolve();
                 },
                 timeoutfn: function (xhr) {
                     clearInput();
@@ -7015,12 +7021,15 @@ _e(function (E, $) {
                     // 执行配置中的方法
                     var editor = this;
                     ontimeout(editor, xhr);
+                    defer.resolve();
                 }
             });
         };
 
         // 开始取文件
         reader.readAsDataURL(file);
+
+        return defer;
     };
 
     // 暴露给 E
